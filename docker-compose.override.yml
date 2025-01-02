@@ -1,0 +1,9 @@
+version: '3.8'
+services:
+  backend:
+    command: ["nodemon", "--legacy-watch", "src/app.js"]  # Agregamos --legacy-watch
+    volumes:
+      - ./control-acceso-backend:/usr/src/app
+      - /usr/src/app/node_modules  # Mantener para evitar reinstalar dependencias
+    environment:
+      - NODE_ENV=development

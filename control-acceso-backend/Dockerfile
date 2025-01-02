@@ -10,7 +10,7 @@ COPY package*.json ./
 # Instalar dependencias
 RUN npm install
 
-# Instalar nodemon global (solo desarrollo)
+# Instalar nodemon globalmente para desarrollo
 RUN npm install nodemon -g
 
 # Copiar todo el código
@@ -19,5 +19,5 @@ COPY . .
 # Exponer el puerto
 EXPOSE 5000
 
-# Iniciar la aplicación (con nodemon en desarrollo)
+# Iniciar el servidor con nodemon (solo desarrollo)
 CMD ["nodemon", "src/app.js"]
