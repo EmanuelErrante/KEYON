@@ -3,18 +3,9 @@ const GrupoLog = require('../models/GrupoLog');
 
 // Crear un nuevo grupo
 exports.crearGrupo = async (req, res) => {
-  const { nombre, descripcion, direccion, coordenadas, tipo, fechaInicio, fechaFin, acceso } = req.body;
+  const { nombre, descripcion, direccion, coordenadas, tipo, fechaInicio, fechaFin, acceso, usuariosConRoles } = req.body;
 
   try {
-    // Verificar si ya existe un grupo con el mismo nombre y tipo creado por el mismo usuario
-    const grupoExistente = await Grupo.findOne({ nombre, tipo, creadoPor: req.usuario.id });
-    if (grupoExistente) {
-      return res.status(409).json({ 
-        mensaje: 'El grupo ya existe. No se puede duplicar.' 
-      });
-    }
-
-    // Crear el nuevo grupo
     const nuevoGrupo = new Grupo({
       nombre,
       descripcion,
@@ -24,9 +15,10 @@ exports.crearGrupo = async (req, res) => {
       fechaInicio,
       fechaFin,
       acceso,
-      creadoPor: req.usuario.id
+      creadoPor: req.usuario.id,
+      usuariosConRoles: usuariosConRoles || [{ usuarioId: req.usuario.id, rol: 'admin' }]
     });
-    
+
     await nuevoGrupo.save();
 
     // Log de creación
@@ -42,33 +34,67 @@ exports.crearGrupo = async (req, res) => {
   }
 };
 
-// Obtener grupos (solo admin o super_admin pueden ver sus propios grupos)
-exports.obtenerGrupos = async (req, res) => {
+// Agregar usuario a un grupo
+exports.agregarUsuarioAGrupo = async (req, res) => {
+  const { usuarioId, rol } = req.body;
+  const grupoId = req.params.id;
+
   try {
-    let grupos;
-    if (req.usuario.rol === 'super_admin') {
-      grupos = await Grupo.find();
-    } else {
-      grupos = await Grupo.find({ creadoPor: req.usuario.id });
+    const grupo = await Grupo.findById(grupoId);
+    if (!grupo) {
+      return res.status(404).json({ mensaje: 'Grupo no encontrado' });
     }
-    res.json(grupos);
+
+    // Verificar si el usuario ya está en el grupo
+    const usuarioExistente = grupo.usuariosConRoles.find(u => u.usuarioId.toString() === usuarioId);
+    if (usuarioExistente) {
+      return res.status(400).json({ mensaje: 'El usuario ya pertenece a este grupo' });
+    }
+
+    grupo.usuariosConRoles.push({ usuarioId, rol });
+    await grupo.save();
+
+    // Log de miembro agregado
+    await GrupoLog.create({
+      grupoId,
+      accion: 'miembro_agregado',
+      realizadoPor: req.usuario.id
+    });
+
+    res.json({ mensaje: 'Usuario agregado al grupo', grupo });
   } catch (error) {
-    res.status(500).json({ mensaje: 'Error al obtener grupos' });
+    res.status(500).json({ mensaje: 'Error al agregar usuario al grupo', error });
   }
 };
 
-// Obtener grupo por ID
-exports.obtenerGrupoPorId = async (req, res) => {
+// Eliminar usuario de un grupo
+exports.eliminarUsuarioDeGrupo = async (req, res) => {
+  const { usuarioId } = req.body;
+  const grupoId = req.params.id;
+
   try {
-    const grupo = await Grupo.findById(req.params.id).populate('miembros');
-    if (!grupo) return res.status(404).json({ mensaje: 'Grupo no encontrado' });
-    res.json(grupo);
+    const grupo = await Grupo.findById(grupoId);
+    if (!grupo) {
+      return res.status(404).json({ mensaje: 'Grupo no encontrado' });
+    }
+
+    grupo.usuariosConRoles = grupo.usuariosConRoles.filter(u => u.usuarioId.toString() !== usuarioId);
+    await grupo.save();
+
+    // Log de miembro eliminado
+    await GrupoLog.create({
+      grupoId,
+      accion: 'miembro_eliminado',
+      realizadoPor: req.usuario.id
+    });
+
+    res.json({ mensaje: 'Usuario eliminado del grupo', grupo });
   } catch (error) {
-    res.status(500).json({ mensaje: 'Error al obtener grupo' });
+    res.status(500).json({ mensaje: 'Error al eliminar usuario del grupo', error });
   }
 };
 
-// Eliminar grupo (solo super_admin)
+// Eliminar grupo completo
 exports.eliminarGrupo = async (req, res) => {
   try {
     const grupo = await Grupo.findById(req.params.id);
@@ -89,43 +115,25 @@ exports.eliminarGrupo = async (req, res) => {
   }
 };
 
-// Actualizar grupo (solo admin o super_admin que creó el grupo)
-exports.actualizarGrupo = async (req, res) => {
-    const { nombre, descripcion, direccion, coordenadas, tipo, fechaInicio, fechaFin, acceso } = req.body;
-  
-    try {
-      const grupo = await Grupo.findById(req.params.id);
-      if (!grupo) {
-        return res.status(404).json({ mensaje: 'Grupo no encontrado' });
-      }
-  
-      // Verificar si el usuario es el creador o super_admin
-      if (grupo.creadoPor.toString() !== req.usuario.id && req.usuario.rol !== 'super_admin') {
-        return res.status(403).json({ mensaje: 'No tienes permiso para actualizar este grupo' });
-      }
-  
-      // Actualizar campos del grupo
-      grupo.nombre = nombre || grupo.nombre;
-      grupo.descripcion = descripcion || grupo.descripcion;
-      grupo.direccion = direccion || grupo.direccion;
-      grupo.coordenadas = coordenadas || grupo.coordenadas;
-      grupo.tipo = tipo || grupo.tipo;
-      grupo.fechaInicio = fechaInicio || grupo.fechaInicio;
-      grupo.fechaFin = fechaFin || grupo.fechaFin;
-      grupo.acceso = acceso || grupo.acceso;
-  
-      await grupo.save();
-  
-      // Log de actualización
-      await GrupoLog.create({
-        grupoId: grupo._id,
-        accion: 'actualizado',
-        realizadoPor: req.usuario.id
-      });
-  
-      res.json({ mensaje: 'Grupo actualizado con éxito', grupo });
-    } catch (error) {
-      res.status(500).json({ mensaje: 'Error al actualizar grupo', error });
-    }
-  };
-  
+// Obtener todos los grupos del usuario autenticado
+exports.obtenerGruposDelUsuario = async (req, res) => {
+  try {
+    const grupos = await Grupo.find({ 'usuariosConRoles.usuarioId': req.usuario.id });
+    res.json(grupos);
+  } catch (error) {
+    res.status(500).json({ mensaje: 'Error al obtener grupos', error });
+  }
+};
+
+// Obtener logs de un grupo
+exports.obtenerLogs = async (req, res) => {
+  try {
+    const logs = await GrupoLog.find({ grupoId: req.params.id })
+      .populate('realizadoPor', 'nombre email')
+      .sort({ fecha: -1 });
+
+    res.json(logs);
+  } catch (error) {
+    res.status(500).json({ mensaje: 'Error al obtener logs', error });
+  }
+};

@@ -1,18 +1,55 @@
 const express = require('express');
 const router = express.Router();
-
-// Middlewares
+const userController = require('../controllers/userController');
+const userLogController = require('../controllers/userLogController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const roleMiddleware = require('../middlewares/roleMiddleware');
-const userController = require('../controllers/userController');
 
 // Obtener todos los usuarios (solo super_admin)
-router.get('/', authMiddleware, roleMiddleware(['super_admin']), userController.getAllUsers);
+router.get(
+    '/',
+    authMiddleware,
+    roleMiddleware(['super_admin']),
+    userController.getAllUsers
+);
 
-// Crear un nuevo usuario (admin o super_admin)
-router.post('/', authMiddleware, roleMiddleware(['admin', 'super_admin']), userController.createUser);
+// Crear un nuevo usuario (solo admin o super_admin)
+router.post(
+    '/',
+    authMiddleware,
+    roleMiddleware(['admin', 'super_admin']),
+    userController.createUser
+);
 
-// Eliminar usuario (solo super_admin)
-router.delete('/:id', authMiddleware, roleMiddleware(['super_admin']), userController.deleteUser);
+// Eliminar un usuario (solo super_admin)
+router.delete(
+    '/:id',
+    authMiddleware,
+    roleMiddleware(['super_admin']),
+    userController.deleteUser
+);
+
+// Actualizar rol de usuario en grupo (admin del grupo o super_admin)
+router.put(
+    '/:id/roles',
+    authMiddleware,
+    userController.updateUserRole
+);
+
+// Obtener logs de un usuario específico (solo super_admin)
+router.get(
+    '/:id/logs',
+    authMiddleware,
+    roleMiddleware(['super_admin']),
+    userLogController.obtenerLogsPorUsuario
+);
+
+// Obtener todos los logs (solo super_admin)
+router.get(
+    '/logs',
+    authMiddleware,
+    roleMiddleware(['super_admin']),
+    userLogController.obtenerTodosLosLogs
+);
 
 module.exports = router;

@@ -3,9 +3,14 @@ node_modules/
 npm-debug.log*
 yarn-error.log*
 
+# Docker
+docker-compose.override.yml
+docker-compose.dev.yml
+docker-compose.prod.yml
+.docker/
 
 # Logs
-logs
+logs/
 *.log
 *.log.*
 
@@ -24,3 +29,42 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Dependencias (Backend y Frontend)
+control-acceso-backend/node_modules/
+control-acceso-app/node_modules/
+
+# Build
+control-acceso-app/build/
+control-acceso-app/web-build/
+
+# Expo/React Native
+.expo/
+.expo-shared/
+
+# Configuración de Linting y Caché
+.eslintcache
+.npm/
+.yarn/
+.yarn-cache/
+
+# Caché de compilación de TypeScript
+*.tsbuildinfo
+
+# Caché de Babel
+.babelrc
+.babelrc.js
+.babelrc.json
+.babelignore
+.cache/
+
+# Archivos de Test
+coverage/
+*.spec.js
+*.test.js
+jest/
+
+# Otros
+*.swo
+*.swn
+*.bak

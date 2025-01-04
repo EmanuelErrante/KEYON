@@ -6,16 +6,21 @@ const GrupoLogSchema = new mongoose.Schema({
     ref: 'Grupo',
     required: true
   },
+  subgrupoId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Grupo.subgrupos',
+    default: null  // Puede ser null si la acción es sobre un grupo principal
+  },
   accion: { 
     type: String, 
-    enum: ['creado', 'actualizado', 'eliminado', 'miembro_agregado', 'miembro_eliminado'],
+    enum: ['creado', 'actualizado', 'eliminado', 'miembro_agregado', 'miembro_eliminado', 'subgrupo_creado', 'subgrupo_eliminado'],
     required: true
   },
   realizadoPor: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
-    required: true
-  },  // Usuario que realizó la acción
+    required: true 
+  },
   fecha: { 
     type: Date, 
     default: Date.now 
