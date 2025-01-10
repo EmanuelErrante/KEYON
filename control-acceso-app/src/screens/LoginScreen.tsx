@@ -1,7 +1,8 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
+import { View, StyleSheet, Image } from 'react-native';
+import { TextInput, Button, Text } from 'react-native-paper';
 import { AuthContext } from '../context/AuthContext';
-import { LoginScreenProps } from '../types/navigationTypes';  // Importar el tipo correcto
+import { LoginScreenProps } from '../types/navigationTypes';
 
 const LoginScreen = ({ navigation }: LoginScreenProps) => {
   const [email, setEmail] = useState('');
@@ -10,37 +11,57 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
 
   const handleLogin = async () => {
     const success = await signIn(email, password);
-    if (success) {
-      navigation.navigate('Home');
-    } else {
+    if (!success) {
       alert('Login fallido. Verifica tus credenciales.');
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Iniciar Sesión</Text>
+      <Image
+        source={require('../assets/images/logo.png')}
+        style={styles.logo}
+        resizeMode="contain"
+      />
+      
+      {/* Título Corregido */}
+      <Text variant="headlineLarge" style={styles.title}>
+        Iniciar Sesión
+      </Text>
+
       <TextInput
-        style={styles.input}
-        placeholder="Email"
+        label="Email"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
-      />
-      <TextInput
         style={styles.input}
-        placeholder="Contraseña"
+        mode="outlined"
+      />
+
+      <TextInput
+        label="Contraseña"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
+        style={styles.input}
+        mode="outlined"
       />
-      <Button title="Ingresar" onPress={handleLogin} />
+
+      <Button
+        mode="contained"
+        onPress={handleLogin}
+        style={styles.button}
+      >
+        Ingresar
+      </Button>
+
       <Text
         style={styles.link}
         onPress={() => navigation.navigate('Register')}
       >
-        ¿No tienes una cuenta? Regístrate
+        ¿No tienes una cuenta?
+        <Text style={[styles.link, styles.linkBold]}> Regístrate</Text>
       </Text>
     </View>
   );
@@ -51,25 +72,31 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 16,
+    backgroundColor: 'white',
+  },
+  logo: {
+    width: 150,
+    height: 150,
+    alignSelf: 'center',
+    marginBottom: 20,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
     textAlign: 'center',
+    marginBottom: 20,
   },
   input: {
-    height: 40,
-    borderColor: '#ccc',
-    borderWidth: 1,
     marginBottom: 20,
-    paddingHorizontal: 8,
-    borderRadius: 5,
+  },
+  button: {
+    marginTop: 10,
   },
   link: {
     marginTop: 20,
     textAlign: 'center',
-    color: 'blue',
+    fontSize: 16,
+  },
+  linkBold: {
+    fontWeight: 'bold',
   },
 });
 

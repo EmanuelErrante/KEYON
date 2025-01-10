@@ -12,7 +12,28 @@ const cors = require('cors');
 const app = express();
 app.use(express.json());
 
+app.use((req, res, next) => {
+  console.log(`[${req.method}] ${req.url}`);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  next();
+});
 
+// Manejo global de preflight
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  res.sendStatus(200);
+});
+
+// Opción específica para la ruta de grupos
+app.options('/api/grupos', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  res.sendStatus(200);
+});
 
 // ------------------------
 //  Rutas
@@ -26,6 +47,13 @@ app.use(express.json());
 app.use(cors({
   origin: '*'
 }));
+
+ app.use(cors({
+   origin: ['http://localhost:8081', 'https://mi-dominio.com'],
+   allowedHeaders: ['Content-Type', 'Authorization'],
+   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+ }));
+
 
 
 app.use('/api/auth', authRoutes);

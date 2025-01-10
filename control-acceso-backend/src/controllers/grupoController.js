@@ -115,15 +115,36 @@ exports.eliminarGrupo = async (req, res) => {
   }
 };
 
+
 // Obtener todos los grupos del usuario autenticado
 exports.obtenerGruposDelUsuario = async (req, res) => {
-  try {
-    const grupos = await Grupo.find({ 'usuariosConRoles.usuarioId': req.usuario.id });
-    res.json(grupos);
-  } catch (error) {
-    res.status(500).json({ mensaje: 'Error al obtener grupos', error });
-  }
-};
+    try {
+      // Buscar grupos donde el usuario tiene algún rol
+      const grupos = await Grupo.find({ 'usuariosConRoles.usuarioId': req.usuario.id });
+  
+      // Añadir el rol del usuario autenticado en cada grupo
+      const gruposConRol = grupos.map(grupo => {
+        const usuario = grupo.usuariosConRoles.find(u => u.usuarioId.equals(req.usuario.id));
+        const rolUsuarioActual = usuario ? usuario.rol : null;
+  
+        // Convertimos el grupo a objeto para modificarlo antes de enviarlo
+        const grupoConRol = grupo.toObject();
+        grupoConRol.rolUsuarioActual = rolUsuarioActual;
+  
+        return grupoConRol;
+      });
+  
+      console.log("xxxxxxxxx", gruposConRol);
+      res.json(gruposConRol);
+  
+    } catch (error) {
+      console.error('Error al obtener grupos:', error);
+      res.status(500).json({ mensaje: 'Error al obtener grupos', error });
+    }
+  };
+  
+
+
 
 // Obtener logs de un grupo
 exports.obtenerLogs = async (req, res) => {
@@ -136,4 +157,45 @@ exports.obtenerLogs = async (req, res) => {
   } catch (error) {
     res.status(500).json({ mensaje: 'Error al obtener logs', error });
   }
+};
+
+
+
+// Obtener detalles de un grupo con usuarios visibles según rol
+exports.obtenerDetalleGrupo = async (req, res) => {
+    const { id } = req.params; // ID del grupo
+    const usuarioId = req.usuario.id; // Usuario autenticado
+
+    try {
+        // Buscar grupo y usuarios relacionados
+        const grupo = await Grupo.findById(id).populate('usuariosConRoles.usuarioId', 'nombre email rolGlobal');
+
+        if (!grupo) {
+            return res.status(404).json({ mensaje: 'Grupo no encontrado' });
+        }
+
+        // Verificar el rol del usuario dentro del grupo
+        const usuarioActual = grupo.usuariosConRoles.find(user => user.usuarioId._id.toString() === usuarioId);
+        if (!usuarioActual) {
+            return res.status(403).json({ mensaje: 'No tienes acceso a este grupo' });
+        }
+
+        // Filtrar usuarios visibles según rol
+        let usuariosVisibles = [];
+        if (usuarioActual.rol === 'admin') {
+            usuariosVisibles = grupo.usuariosConRoles; // Admin ve todos los usuarios
+        } else if (usuarioActual.rol === 'colaborador') {
+            usuariosVisibles = grupo.subgrupos
+                .filter(sub => sub.creadoPor.toString() === usuarioId)
+                .flatMap(sub => sub.usuarios);
+        }
+
+        res.json({
+            ...grupo.toObject(),
+            usuariosConRoles: usuariosVisibles
+        });
+    } catch (error) {
+        console.error('Error al obtener detalle del grupo:', error);
+        res.status(500).json({ mensaje: 'Error al obtener detalle del grupo', error });
+    }
 };

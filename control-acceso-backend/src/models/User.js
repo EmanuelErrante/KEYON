@@ -10,7 +10,8 @@ const UserSchema = new mongoose.Schema({
     type: String, 
     required: true, 
     unique: true,
-    trim: true
+    trim: true,
+    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ // Validación básica de email
   },
   password: { 
     type: String, 
@@ -19,19 +20,16 @@ const UserSchema = new mongoose.Schema({
   identificacion: { 
     type: String, 
     required: true, 
-    unique: true
+    unique: true,
+    trim: true
   },  // DNI, RUT, etc.
 
-
-  
-  // Rol global (ej. super_admin)
   rolGlobal: {
     type: String,
     enum: ['super_admin', 'usuario', 'inspector'],
     default: 'usuario'
   },
 
-  // Roles por grupo (permite subgrupos y diferentes permisos)
   rolesPorGrupo: [{
     grupoId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -40,15 +38,18 @@ const UserSchema = new mongoose.Schema({
     },
     rol: {
       type: String,
-      enum: ['admin', 'colaborador', 'usuario'],
+      enum: ['admin', 'colaborador', 'usuario', 'inspector'], // Agregado inspector
       required: true
     }
   }],
 
-  // Accesos y eventos del usuario
   accesos: [{
     evento: String,
-    expira: Date
+    expira: Date,
+    creadoPor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User' // Referencia al creador del acceso
+    }
   }],
 
   creadoEn: { 
@@ -57,7 +58,6 @@ const UserSchema = new mongoose.Schema({
   }
 });
 
-// Método para verificar si el usuario tiene un rol específico en un grupo
 UserSchema.methods.tieneRolEnGrupo = function (grupoId, rolRequerido) {
   return this.rolesPorGrupo.some(
     r => r.grupoId.toString() === grupoId && r.rol === rolRequerido

@@ -47,6 +47,14 @@ router.get(
   grupoController.obtenerLogs
 );
 
+
+// Ruta para obtener detalles de un grupo por ID
+router.get('/grupos/:id', authMiddleware, grupoController.obtenerDetalleGrupo);
+
+
+
+
+
 // ------------------------
 //      SUBGRUPOS
 // ------------------------
