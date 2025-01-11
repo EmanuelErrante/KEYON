@@ -160,15 +160,17 @@ exports.obtenerLogs = async (req, res) => {
 };
 
 
-
-// Obtener detalles de un grupo con usuarios visibles según rol
+// Obtener detalles de un grupo o subgrupo
 exports.obtenerDetalleGrupo = async (req, res) => {
     const { id } = req.params; // ID del grupo
     const usuarioId = req.usuario.id; // Usuario autenticado
+    const { subgrupoId } = req.query; // Opcional: ID de subgrupo
 
     try {
         // Buscar grupo y usuarios relacionados
-        const grupo = await Grupo.findById(id).populate('usuariosConRoles.usuarioId', 'nombre email rolGlobal');
+        const grupo = await Grupo.findById(id)
+            .populate('usuariosConRoles.usuarioId', 'nombre email rolGlobal')
+            .populate('subgrupos.usuarios.usuarioId', 'nombre email');
 
         if (!grupo) {
             return res.status(404).json({ mensaje: 'Grupo no encontrado' });
@@ -180,19 +182,75 @@ exports.obtenerDetalleGrupo = async (req, res) => {
             return res.status(403).json({ mensaje: 'No tienes acceso a este grupo' });
         }
 
-        // Filtrar usuarios visibles según rol
-        let usuariosVisibles = [];
-        if (usuarioActual.rol === 'admin') {
-            usuariosVisibles = grupo.usuariosConRoles; // Admin ve todos los usuarios
-        } else if (usuarioActual.rol === 'colaborador') {
-            usuariosVisibles = grupo.subgrupos
-                .filter(sub => sub.creadoPor.toString() === usuarioId)
-                .flatMap(sub => sub.usuarios);
+        // Si se especifica un subgrupo, devolver solo ese subgrupo
+        if (subgrupoId) {
+            const subgrupo = grupo.subgrupos.find(sub => sub._id.toString() === subgrupoId);
+            if (!subgrupo) {
+                return res.status(404).json({ mensaje: 'Subgrupo no encontrado' });
+            }
+
+            // Verificar permisos (solo el creador del subgrupo o admin puede ver)
+            const permiso = usuarioActual.rol === 'admin' || subgrupo.creadoPor.toString() === usuarioId;
+            if (!permiso) {
+                return res.status(403).json({ mensaje: 'No tienes permiso para ver este subgrupo' });
+            }
+
+            return res.json({
+                subgrupo: {
+                    id: subgrupo._id,
+                    nombre: subgrupo.nombre,
+                    descripcion: subgrupo.descripcion,
+                    usuarios: subgrupo.usuarios.map(u => ({
+                        id: u.usuarioId._id,
+                        nombre: u.usuarioId.nombre,
+                        email: u.usuarioId.email,
+                        rol: u.rol
+                    }))
+                }
+            });
         }
 
+        // Filtrar usuarios y subgrupos visibles según rol
+        let usuariosGrupoPrincipal = [];
+        let subgruposVisibles = [];
+
+        if (usuarioActual.rol === 'admin') {
+            // Admin ve todos los usuarios del grupo principal y todos los subgrupos
+            usuariosGrupoPrincipal = grupo.usuariosConRoles;
+            subgruposVisibles = grupo.subgrupos;
+        } else if (usuarioActual.rol === 'colaborador') {
+            // Colaborador solo ve su subgrupo
+            subgruposVisibles = grupo.subgrupos.filter(sub => sub.creadoPor.toString() === usuarioId);
+        }
+
+        // Respuesta final estructurada
         res.json({
-            ...grupo.toObject(),
-            usuariosConRoles: usuariosVisibles
+            grupoId: grupo._id,
+            nombre: grupo.nombre,
+            descripcion: grupo.descripcion,
+            direccion: grupo.direccion,
+            tipo: grupo.tipo,
+            fechaInicio: grupo.fechaInicio,
+            fechaFin: grupo.fechaFin,
+            acceso: grupo.acceso,
+            coordenadas: grupo.coordenadas,
+            usuariosGrupoPrincipal: usuariosGrupoPrincipal.map(u => ({
+                id: u.usuarioId._id,
+                nombre: u.usuarioId.nombre,
+                email: u.usuarioId.email,
+                rol: u.rol
+            })),
+            subgrupos: subgruposVisibles.map(sub => ({
+                id: sub._id,
+                nombre: sub.nombre,
+                descripcion: sub.descripcion,
+                usuarios: sub.usuarios.map(u => ({
+                    id: u.usuarioId._id,
+                    nombre: u.usuarioId.nombre,
+                    email: u.usuarioId.email,
+                    rol: u.rol
+                }))
+            }))
         });
     } catch (error) {
         console.error('Error al obtener detalle del grupo:', error);

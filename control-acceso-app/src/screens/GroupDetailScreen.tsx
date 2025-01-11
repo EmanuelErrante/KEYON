@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { View, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
-import { Card, Text, Button, Avatar, Divider, List, IconButton, FAB } from 'react-native-paper';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { Card, Text, Avatar, Divider, List, IconButton, FAB, Button } from 'react-native-paper';
 import { fetchGroupDetail } from '../api/groups';
 import { AuthContext } from '../context/AuthContext';
 import { RouteProp } from '@react-navigation/native';
@@ -12,25 +12,34 @@ type GroupDetailScreenProps = {
 
 export default function GroupDetailScreen({ route }: GroupDetailScreenProps) {
   const { grupoId } = route.params;
-  const [group, setGroup] = useState<any>(null);
+  const [data, setData] = useState<any>(null);
+  const [expandedSubgrupo, setExpandedSubgrupo] = useState<string | null>(null);
   const { userToken, nombre } = useContext(AuthContext);
 
   useEffect(() => {
-    const obtenerGrupo = async () => {
+    const obtenerDetalle = async () => {
       try {
         if (userToken) {
-          const data = await fetchGroupDetail(grupoId, userToken);
-          setGroup(data);
+          const response = await fetchGroupDetail(grupoId, userToken);
+          setData(response);
+
+        //Parche: como es usuario colaborador y siempre tiene solo un subgrupo el subgrupo sale expandido
+        if (response.subgrupos.length === 1) {
+            setExpandedSubgrupo(response.subgrupos[0].id);
+          }
+
+
+
         }
       } catch (error) {
         console.error('Error obteniendo detalle del grupo:', error);
       }
     };
 
-    obtenerGrupo();
+    obtenerDetalle();
   }, [grupoId, userToken]);
 
-  if (!group) {
+  if (!data) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#6200ee" />
@@ -39,83 +48,182 @@ export default function GroupDetailScreen({ route }: GroupDetailScreenProps) {
     );
   }
 
-  const esAdmin = group.usuariosConRoles.some(
-    (user: any) => user.usuarioId.nombre === nombre && (user.rol === 'admin' || user.rol === 'superadmin')
+  const isAdmin = data.usuariosGrupoPrincipal.some(
+    (user: any) => user.nombre === nombre && user.rol === 'admin'
   );
+
+  const handleToggleSubgrupo = (subgrupoId: string) => {
+    console.log('Toggle Subgrupo:', subgrupoId);
+    setExpandedSubgrupo((prev) => (prev === subgrupoId ? null : subgrupoId));
+  };
+
+  const handleAgregarSubgrupo = () => {
+    console.log('Agregar Subgrupo para grupo:', grupoId);
+  };
+
+  const handleEditarGrupo = () => {
+    console.log('Editar Grupo:', grupoId);
+  };
+
+  const handleEliminarGrupo = () => {
+    console.log('Eliminar Grupo:', grupoId);
+  };
+
+  const handleEditarUsuario = (usuarioId: string) => {
+    console.log('Editar Usuario:', usuarioId, 'en grupo:', grupoId);
+  };
+
+  const handlePausarUsuario = (usuarioId: string) => {
+    console.log('Pausar Usuario:', usuarioId, 'en grupo:', grupoId);
+  };
+
+  const handleEliminarUsuario = (usuarioId: string) => {
+    console.log('Eliminar Usuario:', usuarioId, 'en grupo:', grupoId);
+  };
+
+  const handleEditarSubgrupoUsuario = (subgrupoId: string, usuarioId: string) => {
+    console.log('Editar Usuario en Subgrupo:', usuarioId, 'en subgrupo:', subgrupoId);
+  };
+
+  const handlePausarSubgrupoUsuario = (subgrupoId: string, usuarioId: string) => {
+    console.log('Pausar Usuario en Subgrupo:', usuarioId, 'en subgrupo:', subgrupoId);
+  };
+
+  const handleEliminarSubgrupoUsuario = (subgrupoId: string, usuarioId: string) => {
+    console.log('Eliminar Usuario en Subgrupo:', usuarioId, 'en subgrupo:', subgrupoId);
+  };
 
   return (
     <View style={styles.container}>
-      <FlatList
-        ListHeaderComponent={
-          <>
-            {/* Card con detalles del grupo */}
-            <Card style={styles.card}>
-              <Card.Title
-                title={group.nombre}
-                subtitle={group.tipo}
-                left={(props) => <Avatar.Icon {...props} icon="folder" />}
-              />
-              <Card.Content>
-                <Text variant="bodyMedium">{group.descripcion}</Text>
-                <Text style={styles.detailText}>
-                  Dirección: {group.direccion || 'No especificada'}
-                </Text>
-                <Text style={styles.detailText}>
-                  Desde: {group.fechaInicio ? new Date(group.fechaInicio).toLocaleDateString() : 'No disponible'}
-                </Text>
-                <Text style={styles.detailText}>
-                  Hasta: {group.fechaFin ? new Date(group.fechaFin).toLocaleDateString() : 'Sin fecha de finalización'}
-                </Text>
-              </Card.Content>
-
-              {esAdmin && (
-                <Card.Actions>
-                  <Button mode="contained" icon="pencil" onPress={() => {}}>
-                    Editar
-                  </Button>
-                  <Button mode="outlined" icon="delete" onPress={() => {}}>
-                    Eliminar
-                  </Button>
-                </Card.Actions>
-              )}
-            </Card>
-
-            {/* Título para la lista de usuarios */}
-            <Text variant="titleLarge" style={styles.sectionTitle}>
-              Usuarios con acceso
+      {/* Información principal del grupo */}
+      <Card style={styles.card}>
+        <Card.Title
+          title={data.nombre}
+          subtitle={data.descripcion || 'Sin descripción'}
+          left={(props) => <Avatar.Icon {...props} icon="folder" />}
+        />
+        <Card.Content>
+          {/* {data.fechaInicio && (
+            <Text style={styles.detailText}>
+              Desde: {new Date(data.fechaInicio).toLocaleDateString()}
             </Text>
-          </>
-        }
-        data={group.usuariosConRoles}
-        keyExtractor={(item) => item.usuarioId._id}
-        renderItem={({ item }) => (
+          )}
+          {data.fechaFin && (
+            <Text style={styles.detailText}>
+              Hasta: {new Date(data.fechaFin).toLocaleDateString()}
+            </Text>
+          )} */}
+{data.acceso.ilimitado ? (
+    <Text style={styles.detailText}>Duración: Ilimitada</Text>
+  ) : (
+    <>
+      {data.acceso.desde && (
+        <Text style={styles.detailText}>
+          Desde: {new Date(data.acceso.desde).toLocaleString()}
+        </Text>
+      )}
+      {data.acceso.hasta && (
+        <Text style={styles.detailText}>
+          Hasta: {new Date(data.acceso.hasta).toLocaleString()}
+        </Text>
+      )}
+    </>
+  )}
+
+        </Card.Content>
+        {isAdmin && (
+          <Card.Actions>
+            <IconButton icon="pencil" size={24} onPress={handleEditarGrupo} />
+            <IconButton icon="delete" size={24} onPress={handleEliminarGrupo} />
+            <Button mode="contained" icon="folder-plus" onPress={handleAgregarSubgrupo}>
+              Subgrupo
+            </Button>
+          </Card.Actions>
+        )}
+      </Card>
+
+      {/* Usuarios del grupo principal */}
+      <Text variant="titleLarge" style={styles.sectionTitle}>
+        Usuarios y Subgrupos
+      </Text>
+      <View>
+        {data.usuariosGrupoPrincipal.map((user: any) => (
           <List.Item
-            title={item.usuarioId.nombre}
-            description={`Rol: ${item.rol} | Email: ${item.usuarioId.email}`}
-            left={(props) => <Avatar.Text {...props} label={item.usuarioId.nombre.charAt(0)} />}
+            key={user.id}
+            title={user.nombre}
+            description={`Email: ${user.email}`}
+            left={(props) => <Avatar.Text {...props} label={user.nombre.charAt(0)} />}
             right={(props) =>
-              esAdmin && (
+              isAdmin && (
                 <View style={styles.userActions}>
-                  <IconButton icon="pencil" size={20} onPress={() => {}} />
-                  <IconButton icon="pause-circle" size={20} onPress={() => {}} />
-                  <IconButton icon="trash-can" size={20} onPress={() => {}} />
+                  <IconButton icon="pencil" size={20} onPress={() => handleEditarUsuario(user.id)} />
+                  <IconButton icon="pause-circle" size={20} onPress={() => handlePausarUsuario(user.id)} />
+                  <IconButton icon="trash-can" size={20} onPress={() => handleEliminarUsuario(user.id)} />
                 </View>
               )
             }
           />
-        )}
-        ItemSeparatorComponent={() => <Divider />}
-      />
+        ))}
+      </View>
 
-      {/* Botón flotante para agregar usuarios (solo visible para admin) */}
-      {esAdmin && (
-        <FAB
-          style={styles.fab}
-          icon="account-plus"
-          label="Agregar Usuario"
-          onPress={() => {}}
-        />
-      )}
+      {/* Subgrupos */}
+      {data.subgrupos.map((sub: any) => (
+        <Card key={sub.id} style={styles.subgroupCard}>
+          <Card.Title
+            title={sub.nombre}
+            subtitle={sub.descripcion || 'Sin descripción'}
+            right={(props) => (
+              <IconButton
+                {...props}
+                icon={expandedSubgrupo === sub.id ? 'chevron-up' : 'chevron-down'}
+                onPress={() => handleToggleSubgrupo(sub.id)}
+              />
+            )}
+          />
+          {expandedSubgrupo === sub.id &&
+            sub.usuarios.map((user: any) => (
+              <List.Item
+                key={user.id}
+                title={user.nombre}
+                description={`Email: ${user.email}`}
+                left={(props) => <Avatar.Text {...props} label={user.nombre.charAt(0)} />}
+                right={(props) => (
+                  <View style={styles.userActions}>
+                    <IconButton
+                      icon="pencil"
+                      size={20}
+                      onPress={() => handleEditarSubgrupoUsuario(sub.id, user.id)}
+                    />
+                    <IconButton
+                      icon="pause-circle"
+                      size={20}
+                      onPress={() => handlePausarSubgrupoUsuario(sub.id, user.id)}
+                    />
+                    <IconButton
+                      icon="trash-can"
+                      size={20}
+                      onPress={() => handleEliminarSubgrupoUsuario(sub.id, user.id)}
+                    />
+                  </View>
+                )}
+              />
+            ))}
+        </Card>
+      ))}
+
+      {/* Botón flotante para agregar usuario */}
+      <FAB
+        style={styles.fab}
+        icon="account-plus"
+        label={expandedSubgrupo ? "Agregar Usuario al Subgrupo" : "Agregar Usuario"}
+        onPress={() => {
+          if (expandedSubgrupo) {
+            console.log('Agregar Usuario al subgrupo:', expandedSubgrupo);
+          } else {
+            console.log('Agregar Usuario al grupo:', grupoId);
+          }
+        }}
+      />
     </View>
   );
 }
@@ -134,7 +242,6 @@ const styles = StyleSheet.create({
     margin: 16,
     borderRadius: 12,
     elevation: 3,
-    overflow: 'hidden',
   },
   detailText: {
     marginTop: 8,
@@ -153,5 +260,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     bottom: 30,
+  },
+  subgroupCard: {
+    marginVertical: 8,
+    marginHorizontal: 16,
+    borderRadius: 12,
+    elevation: 2,
   },
 });

@@ -28,7 +28,7 @@ export default function HomeScreen() {
   }, [userToken]);
 
   const handleShowQR = (groupId: string) => {
-    console.log(`Mostrar QR para grupo: ${groupId}`);
+    console.log(`Mostrar QR para usuario: ${groupId}`);
     // Aquí se abriría el modal o lógica para mostrar el QR
   };
 
