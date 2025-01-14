@@ -21,7 +21,7 @@ const SubgrupoSchema = new mongoose.Schema({
     },
     rol: { 
       type: String, 
-      enum: ['usuario'], 
+      enum: ['usuario','colaborador'], 
       required: true 
     }
   }],

@@ -257,3 +257,31 @@ exports.obtenerDetalleGrupo = async (req, res) => {
         res.status(500).json({ mensaje: 'Error al obtener detalle del grupo', error });
     }
 };
+
+
+
+// Actualizar grupo
+exports.actualizarGrupo = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const datosActualizados = req.body;
+  
+      // Busca el grupo por ID
+      const grupo = await Grupo.findById(id);
+      if (!grupo) {
+        return res.status(404).json({ mensaje: 'Grupo no encontrado' });
+      }
+  
+      // Actualizar el grupo con los datos recibidos
+      Object.assign(grupo, datosActualizados);
+  
+      // Guardar los cambios en la base de datos
+      const grupoActualizado = await grupo.save();
+  
+      res.json({ mensaje: 'Grupo actualizado con éxito', grupo: grupoActualizado });
+    } catch (error) {
+      console.error('Error al actualizar el grupo:', error);
+      res.status(500).json({ mensaje: 'Error al actualizar el grupo' });
+    }
+  };
+  

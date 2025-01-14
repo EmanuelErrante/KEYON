@@ -8,6 +8,10 @@ import ProfileScreen from '../screens/ProfileScreen';
 import { AuthContext } from '../context/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
 import CustomHeader from '../components/CustomHeader';  // Importamos el CustomHeader
+import EditGroupScreen from '../screens/EditGroupScreen';
+import AddSubgroupScreen from '../screens/AddSubgroupScreen';
+
+
 
 export type RootStackParamList = {
   Login: undefined;
@@ -15,6 +19,9 @@ export type RootStackParamList = {
   GroupDetail: { grupoId: string };
   CreateGroup: undefined;
   Profile: undefined;
+  EditGroup: { grupoId: string }; // Nueva ruta para editar grupo
+  AddSubgroup: { groupId: string }; 
+  
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -65,6 +72,13 @@ const AppNavigator = () => {
               headerRight: () => <CustomHeader />,
             }} 
           />
+          <Stack.Screen name="EditGroup" component={EditGroupScreen} />
+          <Stack.Screen 
+    name="AddSubgroup" 
+    component={AddSubgroupScreen} 
+    options={{ title: 'Agregar Subgrupo' }}
+  />
+
           <Stack.Screen 
             name="Profile" 
             component={ProfileScreen} 

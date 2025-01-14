@@ -52,7 +52,14 @@ router.get(
 router.get('/grupos/:id', authMiddleware, grupoController.obtenerDetalleGrupo);
 
 
-
+// Actualizar grupo (solo admin)
+router.put(
+    '/grupos/:id',
+    authMiddleware,
+    roleMiddleware(['admin']),
+    grupoController.actualizarGrupo
+  );
+  
 
 
 // ------------------------

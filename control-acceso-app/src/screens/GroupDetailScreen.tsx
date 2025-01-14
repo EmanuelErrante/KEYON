@@ -5,16 +5,33 @@ import { fetchGroupDetail } from '../api/groups';
 import { AuthContext } from '../context/AuthContext';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import ConfirmationDialog from '../components/ConfirmationDialog';//importa confirmacion generica de componentes 
+import { deleteGroup } from '../api/groups';
+import { Alert } from 'react-native';
+import { StackNavigationProp } from '@react-navigation/stack';
+
 
 type GroupDetailScreenProps = {
+    
   route: RouteProp<RootStackParamList, 'GroupDetail'>;
+  navigation: StackNavigationProp<RootStackParamList, 'GroupDetail'>;
 };
 
-export default function GroupDetailScreen({ route }: GroupDetailScreenProps) {
+
+
+
+
+// type GroupDetailScreenProps = {
+//   route: RouteProp<RootStackParamList, 'GroupDetail'>;
+// };
+
+export default function GroupDetailScreen({ route, navigation }: GroupDetailScreenProps) {
   const { grupoId } = route.params;
   const [data, setData] = useState<any>(null);
   const [expandedSubgrupo, setExpandedSubgrupo] = useState<string | null>(null);
+  const [isDialogVisible, setDialogVisible] = useState(false);
   const { userToken, nombre } = useContext(AuthContext);
+  
 
   useEffect(() => {
     const obtenerDetalle = async () => {
@@ -56,18 +73,53 @@ export default function GroupDetailScreen({ route }: GroupDetailScreenProps) {
     console.log('Toggle Subgrupo:', subgrupoId);
     setExpandedSubgrupo((prev) => (prev === subgrupoId ? null : subgrupoId));
   };
+/////Agregar Sub Grupo////////
 
-  const handleAgregarSubgrupo = () => {
-    console.log('Agregar Subgrupo para grupo:', grupoId);
-  };
 
-  const handleEditarGrupo = () => {
-    console.log('Editar Grupo:', grupoId);
-  };
+//   const handleAgregarSubgrupo = () => {
+//     console.log('Agregar Subgrupo para grupo:', grupoId);
+//   };
 
-  const handleEliminarGrupo = () => {
-    console.log('Eliminar Grupo:', grupoId);
+const handleAgregarSubgrupo = () => {
+    navigation.navigate('AddSubgroup', { groupId: grupoId });
   };
+  
+
+
+//   const handleEditarGrupo = () => {
+//     console.log('Editar Grupo:', grupoId);
+//   };
+///////Editar Grupo//////////////
+
+const handleEditarGrupo = () => {
+    navigation.navigate('EditGroup', { grupoId }); // Navegamos hacia EditGroupScreen con el ID del grupo
+  };
+  
+
+
+/////////Eliminar Grupo/////////////////
+
+
+const handleEliminarGrupo = async () => {
+    setDialogVisible(true);
+  };
+  const confirmEliminarGrupo = async () => {
+    if (!userToken) {
+        Alert.alert('Error', 'El token no existe ');//borrar el if y arreglar el error 
+        return;
+      }
+    
+    try {
+      setDialogVisible(false);
+      await deleteGroup(grupoId, userToken); // Llamada a la API
+      Alert.alert('Éxito', 'El grupo ha sido eliminado exitosamente.');
+      navigation.navigate('Home'); // Redirige a la pantalla principal
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'No se pudo eliminar el grupo.');
+      console.error('Error eliminando grupo:', error);
+    }
+  };
+    
 
   const handleEditarUsuario = (usuarioId: string) => {
     console.log('Editar Usuario:', usuarioId, 'en grupo:', grupoId);
@@ -141,6 +193,14 @@ export default function GroupDetailScreen({ route }: GroupDetailScreenProps) {
           </Card.Actions>
         )}
       </Card>
+      <ConfirmationDialog
+  visible={isDialogVisible}
+  title="Eliminar Grupo"
+  message="¿Estás seguro de que deseas eliminar este grupo? Esta acción no se puede deshacer."
+  onConfirm={confirmEliminarGrupo}
+  onCancel={() => setDialogVisible(false)}
+/>
+
 
       {/* Usuarios del grupo principal */}
       <Text variant="titleLarge" style={styles.sectionTitle}>
@@ -167,6 +227,9 @@ export default function GroupDetailScreen({ route }: GroupDetailScreenProps) {
       </View>
 
       {/* Subgrupos */}
+     
+     
+     
       {data.subgrupos.map((sub: any) => (
         <Card key={sub.id} style={styles.subgroupCard}>
           <Card.Title
@@ -210,6 +273,10 @@ export default function GroupDetailScreen({ route }: GroupDetailScreenProps) {
             ))}
         </Card>
       ))}
+
+
+
+
 
       {/* Botón flotante para agregar usuario */}
       <FAB
