@@ -1,34 +1,42 @@
-import React, { useState, useContext } from 'react';
-import { View, StyleSheet, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, Alert, Image, Platform } from 'react-native';
 import { TextInput, Button, Text } from 'react-native-paper';
-import { AuthContext } from '../context/AuthContext';
 import { LoginScreenProps } from '../types/navigationTypes';
+import { login } from '../api/auth'; // Llamada al backend
 
-const LoginScreen = ({ navigation }: LoginScreenProps) => {
+const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { signIn } = useContext(AuthContext);
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    const success = await signIn(email, password);
-    if (!success) {
-      alert('Login fallido. Verifica tus credenciales.');
+    try {
+      setLoading(true);
+      const response = await login(email, password);
+      console.log("✅ Respuesta del backend en la app:", response); // 👈 Ver qué llega
+
+      if (response.token) {
+        console.log("Token recibido:", response.token);
+        navigation.navigate('Home', { token: response.token } as never); 
+        // Ahora el nombre es "Home"
+      }  else {
+        Alert.alert("Error", "Credenciales inválidas");
+      }
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Algo salió mal.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
       <Image
-        source={require('../assets/images/logo.png')}
+        source={require('../assets/images/logo.png')} // Ruta asegurada
         style={styles.logo}
-        resizeMode="contain"
+        resizeMode="contain" // Asegura que el logo no se recorte
       />
-      
-      {/* Título Corregido */}
-      <Text variant="headlineLarge" style={styles.title}>
-        Iniciar Sesión
-      </Text>
-
+      <Text style={styles.title}>Inicio de Sesión</Text>
       <TextInput
         label="Email"
         value={email}
@@ -36,33 +44,23 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
         keyboardType="email-address"
         autoCapitalize="none"
         style={styles.input}
-        mode="outlined"
       />
-
       <TextInput
         label="Contraseña"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
         style={styles.input}
-        mode="outlined"
       />
-
       <Button
         mode="contained"
         onPress={handleLogin}
+        loading={loading}
+        disabled={loading}
         style={styles.button}
       >
-        Ingresar
+        Iniciar Sesión
       </Button>
-
-      <Text
-        style={styles.link}
-        onPress={() => navigation.navigate('Register')}
-      >
-        ¿No tienes una cuenta?
-        <Text style={[styles.link, styles.linkBold]}> Regístrate</Text>
-      </Text>
     </View>
   );
 };
@@ -75,28 +73,23 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   logo: {
-    width: 150,
-    height: 150,
-    alignSelf: 'center',
+    
+    width: Platform.OS === 'web' ? 200 : 150, // Tamaño para web y otros dispositivos
+    height: Platform.OS === 'web' ? 200 : 150,
     marginBottom: 20,
+    alignSelf: 'center',
   },
   title: {
+    fontSize: 24,
+    fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 20,
   },
   input: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   button: {
-    marginTop: 10,
-  },
-  link: {
-    marginTop: 20,
-    textAlign: 'center',
-    fontSize: 16,
-  },
-  linkBold: {
-    fontWeight: 'bold',
+    marginTop: 16,
   },
 });
 

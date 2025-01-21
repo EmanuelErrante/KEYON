@@ -1,67 +1,18 @@
 const mongoose = require('mongoose');
 
-const UserSchema = new mongoose.Schema({
-  nombre: { 
-    type: String, 
-    required: true,
-    trim: true
-  },
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true,
-    trim: true,
-    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ // Validación básica de email
-  },
-  password: { 
-    type: String, 
-    required: true
-  },
-  identificacion: { 
-    type: String, 
-    required: true, 
-    unique: true,
-    trim: true
-  },  // DNI, RUT, etc.
-
-  rolGlobal: {
-    type: String,
-    enum: ['super_admin', 'usuario', 'inspector'],
-    default: 'usuario'
-  },
-
-  rolesPorGrupo: [{
-    grupoId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Grupo',
-      default: null
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true }, // Contraseña hasheada
+  groupRoles: [
+    {
+      groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', required: true },
+      role: { type: String, enum: ['admin', 'colaborador', 'usuario', 'inspector'], required: true },
     },
-    rol: {
-      type: String,
-      enum: ['admin', 'colaborador', 'usuario', 'inspector'], // Agregado inspector
-      required: true
-    }
-  }],
+  ],
+}, { timestamps: true });
 
-  accesos: [{
-    evento: String,
-    expira: Date,
-    creadoPor: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User' // Referencia al creador del acceso
-    }
-  }],
+// Agregar índice para optimizar búsquedas por groupId
+userSchema.index({ "groupRoles.groupId": 1 });
 
-  creadoEn: { 
-    type: Date, 
-    default: Date.now 
-  }
-});
-
-UserSchema.methods.tieneRolEnGrupo = function (grupoId, rolRequerido) {
-  return this.rolesPorGrupo.some(
-    r => r.grupoId.toString() === grupoId && r.rol === rolRequerido
-  );
-};
-
-module.exports = mongoose.model('User', UserSchema);
+module.exports = mongoose.model('User', userSchema); 

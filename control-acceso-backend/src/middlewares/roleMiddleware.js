@@ -1,44 +1,38 @@
-const Grupo = require('../models/Grupo');
+
 
 // Middleware para verificar permisos de roles
 const roleMiddleware = (rolesPermitidos) => {
     return async (req, res, next) => {
         const { usuario } = req;
+        const groupId = req.params.groupId;
+
+        console.log('Usuario autenticado en roleMiddleware:', usuario);
+        console.log('Group ID recibido:', groupId);
 
         if (!usuario) {
-            return res.status(401).json({ mensaje: 'Acceso denegado. Token no válido o expirado.' });
+            return res.status(401).json({ message: 'Usuario no autenticado.' });
         }
-
-        // Si el usuario es super_admin, omite verificaciones
-        if (usuario.rolGlobal === 'super_admin') {
-            return next();
-        }
-
-        // Obtener el grupo desde los parámetros o el cuerpo
-        const grupoId = req.params.grupoId || req.body.grupoId || req.params.id;
 
         try {
-            const grupo = await Grupo.findById(grupoId);
-            if (!grupo) {
-                return res.status(404).json({ mensaje: 'Grupo no encontrado' });
-            }
-
-            // Verificar el rol del usuario en el grupo
-            const usuarioEnGrupo = grupo.usuariosConRoles.find(u =>
-                u.usuarioId.toString() === usuario.id
+            // Convertir groupId en ObjectId si es necesario
+            const userRole = usuario.groupRoles.find(
+                (gr) => gr.groupId.toString() === groupId.toString() // Comparación estricta
             );
 
-            if (!usuarioEnGrupo || !rolesPermitidos.includes(usuarioEnGrupo.rol)) {
+            console.log('Rol encontrado:', userRole);
+
+            if (!userRole || !rolesPermitidos.includes(userRole.role)) {
                 return res.status(403).json({
-                    mensaje: 'Acceso prohibido. Rol insuficiente.',
-                    rolUsuario: usuarioEnGrupo ? usuarioEnGrupo.rol : 'Sin rol',
-                    rolesRequeridos: rolesPermitidos
+                    message: 'Acceso prohibido. Rol insuficiente.',
+                    userRole: userRole ? userRole.role : 'Sin rol',
+                    requiredRoles: rolesPermitidos,
                 });
             }
 
             next();
         } catch (error) {
-            res.status(500).json({ mensaje: 'Error en la verificación de permisos', error });
+            console.error('Error en roleMiddleware:', error);
+            res.status(500).json({ message: 'Error en la verificación de permisos', error });
         }
     };
 };

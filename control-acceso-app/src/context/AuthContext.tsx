@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loginApi } from '../api/auth';
+import { login} from '../api/auth';
 
 interface AuthContextType {
   userToken: string | null;
@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const response = await loginApi(email, password);
+      const response = await login(email, password);
       if (response && response.token) {
         setUserToken(response.token);
         setNombre(response.nombre);  // Guarda el nombre en el estado

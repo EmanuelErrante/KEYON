@@ -1,6 +1,18 @@
 {
-  "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "baseUrl": "./",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "paths": {
+      "@screens/*": [
+        "src/screens/*"
+      ]
+    },
+    "jsx": "react",
     "strict": true
-  }
+  },
+  "include": [
+    "src"
+  ],
+  "extends": "expo/tsconfig.base"
 }

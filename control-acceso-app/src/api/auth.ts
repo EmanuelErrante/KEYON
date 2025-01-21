@@ -1,34 +1,24 @@
+import axios from 'axios';
 import API_URL from './config';
 
-export const loginApi = async (email: string, password: string) => {
-    try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
+export const login = async (email: string, password: string) => {
+  try {
+    const response = await axios.post(
+      `${API_URL}/api/auth/login`,
+      { email, password },
+      {
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
-        body: JSON.stringify({ email, password }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Error en la respuesta del servidor');
       }
+    );
 
-      const data = await response.json();
+    console.log("🔹 Respuesta del backend:", response.data); // 👈 Ver qué devuelve exactamente
 
-    //   if (!data.token || !data.nombre) {
-    //     throw new Error('Faltan datos en la respuesta del servidor');
-    //   }
-
-      return {
-        token: data.token,
-        nombre: data.nombre,  // Devolvemos el nombre recibido del backend
-      };
-      
-    } catch (error) {
-      console.error('Error en el login:', error);
-      return null;
-    }
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ Error en login:", error.response?.data || error.message);
+    throw new Error(error.response?.data?.mensaje || "Error de autenticación");
+  }
 };
-
-
