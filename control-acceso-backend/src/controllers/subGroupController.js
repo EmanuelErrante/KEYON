@@ -220,9 +220,157 @@ const deleteSubgroup = async (req, res) => {
   }
 };
 
+const addUserToSubgroup = async (req, res) => {
+  try {
+    const { groupId, subgroupId } = req.params;
+    const { email } = req.body;
+    const requesterId = req.usuario.id;
+
+    console.log('--- Iniciando proceso de agregar usuario a subgrupo ---');
+    console.log('Usuario solicitante:', requesterId);
+    console.log('Grupo ID:', groupId);
+    console.log('Subgrupo ID:', subgroupId);
+    console.log('Email del usuario:', email);
+
+    // Buscar el grupo padre
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ message: 'Grupo no encontrado.' });
+    }
+
+    console.log('Grupo encontrado:', group);
+
+    // Buscar el subgrupo
+    const subgroup = await SubGroup.findById(subgroupId);
+    if (!subgroup) {
+      return res.status(404).json({ message: 'Subgrupo no encontrado.' });
+    }
+
+    console.log('Subgrupo encontrado:', subgroup);
+
+    // Verificar si el solicitante es admin del grupo o colaborador de ese subgrupo
+    const isAdmin = group.admins.includes(requesterId);
+    const isCollaborator = subgroup.collaborator && subgroup.collaborator.toString() === requesterId;
+
+    if (!isAdmin && !isCollaborator) {
+      return res.status(403).json({ message: 'Solo los administradores o colaboradores pueden agregar usuarios.' });
+    }
+
+    // Buscar el usuario en la BD
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      console.log('Usuario no registrado. Aquí iría la lógica de invitaciones.');
+      // 🔹 Lógica de invitación pendiente (implementar más adelante)
+      return res.status(404).json({ message: 'El usuario no está registrado. Implementar invitaciones en el futuro.' });
+    }
+
+    console.log('Usuario encontrado:', user);
+
+    // Verificar que el usuario NO sea un colaborador del grupo padre
+    const isGroupCollaborator = user.groupRoles.some(gr => gr.groupId.toString() === groupId && gr.role === 'colaborador');
+    if (isGroupCollaborator) {
+      console.log('Error: Un colaborador del grupo padre no puede ser usuario de un subgrupo.');
+      return res.status(400).json({ message: 'Un colaborador del grupo no puede ser usuario de un subgrupo.' });
+    }
+
+    // Verificar que el usuario no esté ya en este subgrupo
+    const userInSubgroup = user.groupRoles.find(gr => gr.groupId.toString() === subgroupId);
+    if (userInSubgroup) {
+      console.log('Error: Usuario ya pertenece a este subgrupo.');
+      return res.status(400).json({ message: 'El usuario ya pertenece a este subgrupo.' });
+    }
+
+    // Permitir que el usuario pertenezca a varios subgrupos del mismo grupo padre
+    console.log('Agregando usuario al subgrupo...');
+    user.groupRoles.push({ groupId: subgroupId, role: 'usuario' });
+
+    // Guardar cambios en la BD
+    await user.save();
+
+    console.log('Usuario agregado correctamente al subgrupo.');
+    res.status(200).json({ message: 'Usuario agregado al subgrupo con éxito.', user });
+
+  } catch (error) {
+    console.error('Error en addUserToSubgroup:', error);
+    res.status(500).json({ message: 'Error al agregar usuario al subgrupo', error: error.message });
+  }
+};
+
+
+//Eliminar Usuario de Subgrupo
+const removeUserFromSubgroup = async (req, res) => {
+  try {
+    const { groupId, subgroupId, userId } = req.params;
+    const requesterId = req.usuario.id;
+
+    console.log('--- Iniciando proceso de eliminar usuario de subgrupo ---');
+    console.log('Usuario solicitante:', requesterId);
+    console.log('Grupo ID:', groupId);
+    console.log('Subgrupo ID:', subgroupId);
+    console.log('Usuario a eliminar:', userId);
+
+    // Buscar el grupo padre
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ message: 'Grupo no encontrado.' });
+    }
+
+    console.log('Grupo encontrado:', group);
+
+    // Buscar el subgrupo
+    const subgroup = await SubGroup.findById(subgroupId);
+    if (!subgroup) {
+      return res.status(404).json({ message: 'Subgrupo no encontrado.' });
+    }
+
+    console.log('Subgrupo encontrado:', subgroup);
+
+    // Verificar si el solicitante es admin del grupo o colaborador del subgrupo
+    const isAdmin = group.admins.includes(requesterId);
+    const isCollaborator = subgroup.collaborator && subgroup.collaborator.toString() === requesterId;
+
+    if (!isAdmin && !isCollaborator) {
+      return res.status(403).json({ message: 'Solo los administradores o colaboradores pueden eliminar usuarios.' });
+    }
+
+    // Buscar el usuario en la BD
+    let user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado.' });
+    }
+
+    console.log('Usuario encontrado:', user);
+
+    // Verificar que el usuario pertenezca al subgrupo
+    const userInSubgroup = user.groupRoles.find(gr => gr.groupId.toString() === subgroupId);
+    if (!userInSubgroup) {
+      console.log('Error: Usuario no pertenece a este subgrupo.');
+      return res.status(400).json({ message: 'El usuario no pertenece a este subgrupo.' });
+    }
+
+    // Eliminar al usuario del subgrupo
+    user.groupRoles = user.groupRoles.filter(gr => gr.groupId.toString() !== subgroupId);
+
+    // Guardar cambios en la BD
+    await user.save();
+
+    console.log('Usuario eliminado correctamente del subgrupo.');
+    res.status(200).json({ message: 'Usuario eliminado del subgrupo con éxito.', user });
+
+  } catch (error) {
+    console.error('Error en removeUserFromSubgroup:', error);
+    res.status(500).json({ message: 'Error al eliminar usuario del subgrupo', error: error.message });
+  }
+};
+
+
+
 module.exports = {
   createSubgroup,
   getSubgroupsByGroup,
   updateSubgroup,
   deleteSubgroup,
+  addUserToSubgroup,
+  removeUserFromSubgroup,
 };
