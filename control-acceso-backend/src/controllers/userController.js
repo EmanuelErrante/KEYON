@@ -1,167 +1,46 @@
 const User = require('../models/User');
-const bcrypt = require('bcrypt');
-const UserLog = require('../models/UserLog');
 
-// Obtener todos los usuarios (solo super_admin puede ver todos)
-exports.getAllUsers = async (req, res) => {
-    try {
-        // Validar que el usuario tenga permisos de super_admin
-        if (req.usuario.rolGlobal !== 'super_admin') {
-            return res.status(403).json({ mensaje: 'No tienes permiso para ver todos los usuarios' });
-        }
+const getUserMemberships = async (req, res) => {
+  try {
+    const userId = req.usuario.id;
 
-        const usuarios = await User.find().populate('rolesPorGrupo.grupoId');
-        res.json(usuarios);
-    } catch (error) {
-        console.error('Error al obtener usuarios:', error);
-        res.status(500).json({ mensaje: 'Error al obtener usuarios' });
+    console.log(`📌 Obteniendo afiliaciones del usuario: ${userId}`);
+
+    // Buscar al usuario y poblar dinámicamente los grupos/subgrupos usando refPath
+    const user = await User.findById(userId)
+      .populate('groupRoles.groupId', 'name') // Mongoose usa refPath para resolver
+      .select('groupRoles');
+
+    if (!user) {
+      console.log("❌ Usuario no encontrado en la base de datos.");
+      return res.status(404).json({ message: 'Usuario no encontrado' });
     }
+
+    console.log("🔍 Datos después de populate:", JSON.stringify(user, null, 2));
+
+    // Validar que groupRoles tenga datos y no contenga valores nulos
+    if (!user.groupRoles || user.groupRoles.length === 0) {
+      console.log("⚠️ El usuario no tiene grupos ni subgrupos asignados.");
+      return res.status(200).json([]);
+    }
+
+    // Filtrar y mapear los datos para evitar errores con groupId nulo
+    const memberships = user.groupRoles
+      .filter(membership => membership.groupId) // Evitar registros inválidos
+      .map(membership => ({
+        _id: membership.groupId._id.toString(),
+        name: membership.groupId.name || 'Nombre no encontrado',
+        role: membership.role,
+        type: membership.type // 'group' o 'subgroup'
+      }));
+
+    console.log(`✅ Afiliaciones obtenidas correctamente para el usuario ${userId}`);
+
+    res.status(200).json(memberships);
+  } catch (error) {
+    console.error('❌ Error obteniendo afiliaciones del usuario:', error);
+    res.status(500).json({ message: 'Error obteniendo afiliaciones del usuario', error: error.message });
+  }
 };
 
-// Crear un nuevo usuario
-exports.createUser = async (req, res) => {
-    const { nombre, email, password, identificacion, rolesPorGrupo, rolGlobal } = req.body;
-
-    try {
-        // Verificar si el email ya existe
-        const usuarioExistente = await User.findOne({ email });
-        if (usuarioExistente) {
-            return res.status(422).json({ mensaje: 'El correo electrónico ya está registrado' });
-        }
-
-        const salt = await bcrypt.genSalt(12); // Aumentamos la longitud del salt
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        const nuevoUsuario = new User({
-            nombre,
-            email,
-            password: hashedPassword,
-            identificacion,
-            rolGlobal: rolGlobal || 'usuario',
-            rolesPorGrupo,
-        });
-
-        await nuevoUsuario.save();
-
-        // Crear log de usuario
-        await UserLog.create({
-            usuarioId: nuevoUsuario._id,
-            accion: 'creado',
-            realizadoPor: req.usuario ? req.usuario.id : null,
-        });
-
-        res.status(201).json({ mensaje: 'Usuario creado correctamente', usuario: nuevoUsuario });
-    } catch (error) {
-        console.error('Error al crear usuario:', error);
-        res.status(500).json({ mensaje: 'Error al crear usuario' });
-    }
-};
-
-// Eliminar usuario (colaboradores solo pueden eliminar usuarios de su subgrupo)
-exports.deleteUser = async (req, res) => {
-    try {
-        const usuario = await User.findById(req.params.id);
-        if (!usuario) {
-            return res.status(404).json({ mensaje: 'Usuario no encontrado' });
-        }
-
-        const { rolGlobal, rolesPorGrupo } = req.usuario; // Datos del usuario que realiza la acción
-
-        // Verificar si el usuario es super_admin
-        if (rolGlobal === 'super_admin') {
-            await User.findByIdAndDelete(req.params.id);
-
-            await UserLog.create({
-                usuarioId: usuario._id,
-                accion: 'eliminado',
-                realizadoPor: req.usuario.id,
-            });
-
-            return res.json({ mensaje: 'Usuario eliminado correctamente' });
-        }
-
-        // Verificar si el usuario es colaborador y tiene permisos en el subgrupo
-        const colaboradorPermiso = rolesPorGrupo.some((rol) => {
-            return (
-                rol.grupoId.toString() === req.body.grupoId && // Validar grupo
-                rol.rol === 'colaborador' && // Solo colaboradores
-                usuario.rolesPorGrupo.some((ur) => ur.grupoId.toString() === rol.grupoId) // Usuario pertenece al grupo/subgrupo
-            );
-        });
-
-        if (!colaboradorPermiso) {
-            return res
-                .status(403)
-                .json({ mensaje: 'No tienes permiso para eliminar este usuario' });
-        }
-
-        await User.findByIdAndDelete(req.params.id);
-
-        await UserLog.create({
-            usuarioId: usuario._id,
-            accion: 'eliminado',
-            realizadoPor: req.usuario.id,
-        });
-
-        res.json({ mensaje: 'Usuario eliminado correctamente' });
-    } catch (error) {
-        console.error('Error al eliminar usuario:', error);
-        res.status(500).json({ mensaje: 'Error al eliminar usuario' });
-    }
-};
-
-
-// Actualizar roles por grupo (valida que colaboradores solo asignen rol usuario)
-exports.updateUserRole = async (req, res) => {
-    const { grupoId, rol } = req.body;
-    const userId = req.params.id;
-
-    try {
-        const usuario = await User.findById(userId);
-        if (!usuario) {
-            return res.status(404).json({ mensaje: 'Usuario no encontrado' });
-        }
-
-        const { rolGlobal, rolesPorGrupo } = req.usuario; // Usuario que realiza la acción
-
-        // Validar rol
-        const rolesValidos = ['admin', 'colaborador', 'usuario'];
-        if (!rolesValidos.includes(rol)) {
-            return res.status(422).json({ mensaje: 'Rol inválido' });
-        }
-
-        // Verificar permisos del colaborador (solo rol usuario en su subgrupo)
-        if (rolGlobal !== 'super_admin') {
-            const colaboradorPermiso = rolesPorGrupo.some((r) => {
-                return r.grupoId.toString() === grupoId && r.rol === 'colaborador';
-            });
-
-            if (!colaboradorPermiso || rol !== 'usuario') {
-                return res
-                    .status(403)
-                    .json({ mensaje: 'No tienes permiso para asignar este rol' });
-            }
-        }
-
-        const rolExistente = usuario.rolesPorGrupo.find((r) => r.grupoId.toString() === grupoId);
-
-        if (rolExistente) {
-            rolExistente.rol = rol;
-        } else {
-            usuario.rolesPorGrupo.push({ grupoId, rol });
-        }
-
-        await usuario.save();
-
-        await UserLog.create({
-            usuarioId: usuario._id,
-            accion: 'rol_actualizado',
-            realizadoPor: req.usuario.id,
-        });
-
-        res.json({ mensaje: 'Rol actualizado correctamente', usuario });
-    } catch (error) {
-        console.error('Error al actualizar rol:', error);
-        res.status(500).json({ mensaje: 'Error al actualizar rol' });
-    }
-};
+module.exports = { getUserMemberships };

@@ -36,6 +36,7 @@ const createGroup = async (req, res) => {
         groupRoles: {
           groupId: group._id,
           role: 'admin',
+          type: 'Group',
         },
       },
     });
@@ -187,21 +188,21 @@ const addUserToGroup = async (req, res) => {
       return res.status(400).json({ message: 'El usuario ya pertenece a este grupo.' });
     }
 
-   // Lógica corregida
+   
+// Lógica corregida con type fijo en 'group'
 if (role === 'usuario') {
   console.log('Agregando usuario normal al grupo...');
-  user.groupRoles.push({ groupId, role: 'usuario' });
+  user.groupRoles.push({ groupId, role: 'usuario', type: 'Group' });
 } else if (role === 'admin') {
   console.log('Agregando administrador al grupo...');
   group.admins.push(user._id);
-  user.groupRoles.push({ groupId, role: 'admin' });
+  user.groupRoles.push({ groupId, role: 'admin', type: 'Group' });
 } else if (role === 'colaborador') {
   console.log('Agregando colaborador al grupo...');
-  user.groupRoles.push({ groupId, role: 'colaborador' });
-  // Aquí podríamos crear automáticamente un subgrupo si es necesario
+  user.groupRoles.push({ groupId, role: 'colaborador', type: 'Group' });
 } else if (role === 'inspector') {
   console.log('Agregando inspector al grupo...');
-  user.groupRoles.push({ groupId, role: 'inspector' });
+  user.groupRoles.push({ groupId, role: 'inspector', type: 'Group' });
 }
 
     // Guardar cambios en el usuario y en el grupo

@@ -1,8 +1,8 @@
 
 const mongoose = require('mongoose');
 const SubGroup = require('../models/SubGroup');
-const Group = require('../models/Group'); // Falta esta importación
-const User = require('../models/User'); // Falta esta importación
+const Group = require('../models/Group'); 
+const User = require('../models/User'); 
 
 
 
@@ -283,7 +283,9 @@ const addUserToSubgroup = async (req, res) => {
 
     // Permitir que el usuario pertenezca a varios subgrupos del mismo grupo padre
     console.log('Agregando usuario al subgrupo...');
-    user.groupRoles.push({ groupId: subgroupId, role: 'usuario' });
+    user.groupRoles.push({ groupId: subgroupId, role: 'usuario', type: 'SubGroup' });
+
+    console.log("🛠️ Datos antes de guardar:", JSON.stringify(user.groupRoles, null, 2));
 
     // Guardar cambios en la BD
     await user.save();
